@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HDFC Bank SIP Simulator</title>
+    <title>Investment Simulator - SIP & Lump Sum</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
@@ -46,6 +46,35 @@
         .header p {
             color: #666;
             font-size: 1.1rem;
+        }
+        
+        .investment-mode-toggle {
+            display: flex;
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 32px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .toggle-option {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: transparent;
+            color: #666;
+        }
+        
+        .toggle-option.active {
+            background: linear-gradient(135deg, #1976d2, #3f51b5);
+            color: white;
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
         }
         
         .current-info {
@@ -247,6 +276,22 @@
         .hidden {
             display: none !important;
         }
+        
+        .mode-sip {
+            display: block;
+        }
+        
+        .mode-lumpsum {
+            display: none;
+        }
+        
+        .mode-lumpsum.active {
+            display: block;
+        }
+        
+        .mode-sip.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -254,8 +299,18 @@
         <!-- Input Form -->
         <div id="input-form" class="card">
             <div class="header">
-                <h1>📈 SIP Investment Simulator</h1>
-                <p>Simulate your systematic investment plan for any stock</p>
+                <h1>📈 Investment Simulator</h1>
+                <p>Simulate your investment strategy - SIP or Lump Sum</p>
+            </div>
+            
+            <!-- Investment Mode Toggle -->
+            <div class="investment-mode-toggle">
+                <div class="toggle-option active" onclick="toggleInvestmentMode('sip')">
+                    📊 SIP (Monthly)
+                </div>
+                <div class="toggle-option" onclick="toggleInvestmentMode('lumpsum')">
+                    💰 Lump Sum
+                </div>
             </div>
             
             <div class="form-group">
@@ -276,19 +331,37 @@
                 <div class="helper-text">Expected annual return percentage (1% to 50%)</div>
             </div>
             
-            <div class="form-group">
-                <label for="monthlyAmount">Monthly Investment Amount (₹)</label>
-                <input type="number" id="monthlyAmount" value="10000" min="1000" step="500">
+            <!-- SIP Mode Fields -->
+            <div class="mode-sip active">
+                <div class="form-group">
+                    <label for="monthlyAmount">Monthly Investment Amount (₹)</label>
+                    <input type="number" id="monthlyAmount" value="10000" min="1000" step="500">
+                </div>
+                
+                <div class="form-group">
+                    <label for="investmentPeriod">Investment Period (Months)</label>
+                    <input type="number" id="investmentPeriod" value="60" min="6" max="360">
+                    <div class="helper-text" id="yearDisplay">5.0 years</div>
+                </div>
             </div>
             
-            <div class="form-group">
-                <label for="investmentPeriod">Investment Period (Months)</label>
-                <input type="number" id="investmentPeriod" value="60" min="6" max="360">
-                <div class="helper-text" id="yearDisplay">5.0 years</div>
+            <!-- Lump Sum Mode Fields -->
+            <div class="mode-lumpsum">
+                <div class="form-group">
+                    <label for="lumpSumAmount">Lump Sum Investment Amount (₹)</label>
+                    <input type="number" id="lumpSumAmount" value="600000" min="10000" step="10000">
+                    <div class="helper-text">One-time investment amount</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="holdingPeriod">Holding Period (Months)</label>
+                    <input type="number" id="holdingPeriod" value="60" min="6" max="360">
+                    <div class="helper-text" id="lumpSumYearDisplay">5.0 years</div>
+                </div>
             </div>
             
-            <button class="simulate-btn" onclick="simulateSIP()">
-                🧮 Simulate SIP Investment
+            <button class="simulate-btn" onclick="simulateInvestment()">
+                🧮 <span id="simulateButtonText">Simulate SIP Investment</span>
             </button>
         </div>
         
@@ -296,11 +369,12 @@
         <div id="results">
             <div class="card">
                 <div style="overflow: hidden;">
-                    <h1 style="float: left; color: #333;" id="resultsTitle">Stock SIP Results</h1>
+                    <h1 style="float: left; color: #333;" id="resultsTitle">Investment Results</h1>
                     <button class="new-simulation" onclick="showInputForm()">New Simulation</button>
                 </div>
                 
                 <div class="current-info" id="simulationInfo" style="margin-bottom: 24px;">
+                    <div class="info-item" id="modeInfo">📊 Mode: Loading...</div>
                     <div class="info-item" id="stockInfo">📊 Stock: Loading...</div>
                     <div class="info-item" id="priceInfo">💰 Starting Price: Loading...</div>
                     <div class="info-item" id="growthInfo">🎯 Annual Growth: Loading...</div>
@@ -327,11 +401,11 @@
                 
                 <div class="details-grid">
                     <div class="detail-item">
-                        <h4>Total Shares Acquired</h4>
+                        <h4 id="sharesLabel">Total Shares Acquired</h4>
                         <div class="value" id="totalShares">0</div>
                     </div>
                     <div class="detail-item">
-                        <h4>Average Cost Per Share</h4>
+                        <h4 id="avgCostLabel">Average Cost Per Share</h4>
                         <div class="value" id="avgCost">₹0</div>
                     </div>
                     <div class="detail-item">
@@ -345,13 +419,13 @@
                 </div>
                 
                 <div class="chart-container">
-                    <h3>📊 Investment Growth Over Time</h3>
+                    <h3 id="chartTitle">📊 Investment Growth Over Time</h3>
                     <div class="chart-wrapper">
                         <canvas id="growthChart"></canvas>
                     </div>
                 </div>
                 
-                <div class="chart-container">
+                <div class="chart-container" id="priceChartContainer">
                     <h3>📈 Share Price vs Average Cost</h3>
                     <div class="chart-wrapper">
                         <canvas id="priceChart"></canvas>
@@ -359,7 +433,7 @@
                 </div>
                 
                 <div class="chart-container">
-                    <h3>🔍 Compounding Verification (First 24 Months)</h3>
+                    <h3 id="verificationTitle">🔍 Compounding Verification (First 24 Months)</h3>
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; max-height: 300px; overflow-y: auto;" id="compoundingTable">
                         Loading...
                     </div>
@@ -378,6 +452,7 @@
         let annualGrowthRate = 0.13;
         let monthlyGrowthRate = Math.pow(1 + annualGrowthRate, 1/12) - 1;
         let stockName = 'HDFC Bank';
+        let investmentMode = 'sip'; // 'sip' or 'lumpsum'
         
         let growthChart = null;
         let priceChart = null;
@@ -388,6 +463,30 @@
             document.getElementById('yearDisplay').textContent = (months / 12).toFixed(1) + ' years';
         });
         
+        document.getElementById('holdingPeriod').addEventListener('input', function() {
+            const months = this.value;
+            document.getElementById('lumpSumYearDisplay').textContent = (months / 12).toFixed(1) + ' years';
+        });
+        
+        function toggleInvestmentMode(mode) {
+            investmentMode = mode;
+            
+            // Update toggle buttons
+            document.querySelectorAll('.toggle-option').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide relevant fields
+            if (mode === 'sip') {
+                document.querySelector('.mode-sip').classList.add('active');
+                document.querySelector('.mode-lumpsum').classList.remove('active');
+                document.getElementById('simulateButtonText').textContent = 'Simulate SIP Investment';
+            } else {
+                document.querySelector('.mode-sip').classList.remove('active');
+                document.querySelector('.mode-lumpsum').classList.add('active');
+                document.getElementById('simulateButtonText').textContent = 'Simulate Lump Sum Investment';
+            }
+        }
+        
         function formatCurrency(amount) {
             return new Intl.NumberFormat('en-IN', {
                 style: 'currency',
@@ -396,21 +495,13 @@
             }).format(amount);
         }
         
-        function simulateSIP() {
-            const monthlyInvestment = parseFloat(document.getElementById('monthlyAmount').value);
-            const investmentPeriod = parseInt(document.getElementById('investmentPeriod').value);
-            
+        function simulateInvestment() {
             // Get user inputs for stock details
             stockName = document.getElementById('stockName').value || 'HDFC Bank';
             currentPrice = parseFloat(document.getElementById('currentPrice').value);
             const growthRatePercent = parseFloat(document.getElementById('growthRate').value);
             
             // Validation
-            if (monthlyInvestment < 1000 || investmentPeriod < 6) {
-                alert('Please enter valid amounts (Min: ₹1000 monthly, 6 months period)');
-                return;
-            }
-            
             if (currentPrice <= 0) {
                 alert('Please enter a valid stock price (greater than 0)');
                 return;
@@ -425,8 +516,31 @@
             annualGrowthRate = growthRatePercent / 100;
             monthlyGrowthRate = Math.pow(1 + annualGrowthRate, 1/12) - 1;
             
-            const simulationData = calculateSIP(monthlyInvestment, investmentPeriod);
-            displayResults(simulationData, monthlyInvestment, investmentPeriod);
+            let simulationData;
+            
+            if (investmentMode === 'sip') {
+                const monthlyInvestment = parseFloat(document.getElementById('monthlyAmount').value);
+                const investmentPeriod = parseInt(document.getElementById('investmentPeriod').value);
+                
+                if (monthlyInvestment < 1000 || investmentPeriod < 6) {
+                    alert('Please enter valid amounts (Min: ₹1000 monthly, 6 months period)');
+                    return;
+                }
+                
+                simulationData = calculateSIP(monthlyInvestment, investmentPeriod);
+            } else {
+                const lumpSumAmount = parseFloat(document.getElementById('lumpSumAmount').value);
+                const holdingPeriod = parseInt(document.getElementById('holdingPeriod').value);
+                
+                if (lumpSumAmount < 10000 || holdingPeriod < 6) {
+                    alert('Please enter valid amounts (Min: ₹10000 lump sum, 6 months holding period)');
+                    return;
+                }
+                
+                simulationData = calculateLumpSum(lumpSumAmount, holdingPeriod);
+            }
+            
+            displayResults(simulationData);
             
             document.getElementById('input-form').style.display = 'none';
             document.getElementById('results').style.display = 'block';
@@ -447,11 +561,9 @@
             let totalShares = 0;
             let currentSharePrice = currentPrice;
             
-            // Fix: Recalculate monthly growth rate properly
             const monthlyGrowthRate = Math.pow(1 + annualGrowthRate, 1/12) - 1;
             
             for (let month = 1; month <= investmentPeriod; month++) {
-                // Apply monthly compounding BEFORE buying shares this month
                 currentSharePrice = currentSharePrice * (1 + monthlyGrowthRate);
                 
                 const sharesBought = monthlyInvestment / currentSharePrice;
@@ -471,12 +583,9 @@
                 data.labels.push(`Month ${month}`);
             }
             
-            // Final summary - Fix the returns calculation
             const finalValue = data.currentValue[data.currentValue.length - 1];
             const totalGains = finalValue - totalInvested;
             const totalReturnsPercent = (totalGains / totalInvested) * 100;
-            
-            // Verification: What should the share price be after this period?
             const expectedSharePrice = currentPrice * Math.pow(1 + annualGrowthRate, investmentPeriod / 12);
             
             const finalData = {
@@ -488,17 +597,70 @@
                 finalPrice: data.sharePrice[data.sharePrice.length - 1],
                 expectedPrice: Math.round(expectedSharePrice),
                 totalReturns: totalReturnsPercent.toFixed(2),
-                investmentPeriodYears: (investmentPeriod / 12).toFixed(1)
+                investmentPeriodYears: (investmentPeriod / 12).toFixed(1),
+                mode: 'SIP'
             };
             
             return { data, summary: finalData, monthlyInvestment, investmentPeriod };
         }
         
-        function displayResults(result, monthlyInvestment, investmentPeriod) {
+        function calculateLumpSum(lumpSumAmount, holdingPeriod) {
+            const data = {
+                months: [],
+                totalInvested: [],
+                currentValue: [],
+                gains: [],
+                sharePrice: [],
+                avgCost: [],
+                labels: []
+            };
+            
+            const initialShares = lumpSumAmount / currentPrice;
+            let currentSharePrice = currentPrice;
+            const monthlyGrowthRate = Math.pow(1 + annualGrowthRate, 1/12) - 1;
+            
+            for (let month = 1; month <= holdingPeriod; month++) {
+                currentSharePrice = currentSharePrice * (1 + monthlyGrowthRate);
+                
+                const currentValue = initialShares * currentSharePrice;
+                const gains = currentValue - lumpSumAmount;
+                
+                data.months.push(month);
+                data.totalInvested.push(lumpSumAmount);
+                data.currentValue.push(Math.round(currentValue));
+                data.gains.push(Math.round(gains));
+                data.sharePrice.push(Math.round(currentSharePrice));
+                data.avgCost.push(currentPrice); // Average cost is initial price for lump sum
+                data.labels.push(`Month ${month}`);
+            }
+            
+            const finalValue = data.currentValue[data.currentValue.length - 1];
+            const totalGains = finalValue - lumpSumAmount;
+            const totalReturnsPercent = (totalGains / lumpSumAmount) * 100;
+            const expectedSharePrice = currentPrice * Math.pow(1 + annualGrowthRate, holdingPeriod / 12);
+            
+            const finalData = {
+                totalInvested: lumpSumAmount,
+                finalValue: finalValue,
+                totalGains: totalGains,
+                totalShares: initialShares.toFixed(2),
+                avgCost: currentPrice,
+                finalPrice: data.sharePrice[data.sharePrice.length - 1],
+                expectedPrice: Math.round(expectedSharePrice),
+                totalReturns: totalReturnsPercent.toFixed(2),
+                investmentPeriodYears: (holdingPeriod / 12).toFixed(1),
+                mode: 'Lump Sum'
+            };
+            
+            return { data, summary: finalData, lumpSumAmount, holdingPeriod };
+        }
+        
+        function displayResults(result) {
             const { data, summary } = result;
             
             // Update header with stock information
-            document.getElementById('resultsTitle').textContent = stockName + ' SIP Results';
+            document.getElementById('resultsTitle').textContent = stockName + ' ' + summary.mode + ' Results';
+            document.getElementById('modeInfo').textContent = '📊 Mode: ' + summary.mode;
             document.getElementById('stockInfo').textContent = '📊 Stock: ' + stockName;
             document.getElementById('priceInfo').textContent = '💰 Starting Price: ₹' + currentPrice;
             document.getElementById('growthInfo').textContent = '🎯 Annual Growth: ' + (annualGrowthRate * 100).toFixed(1) + '%';
@@ -509,27 +671,49 @@
             document.getElementById('totalGains').textContent = formatCurrency(summary.totalGains);
             document.getElementById('totalReturns').textContent = summary.totalReturns + '%';
             
-            // Update detail cards
+            // Update detail cards based on mode
+            if (summary.mode === 'SIP') {
+                document.getElementById('sharesLabel').textContent = 'Total Shares Acquired';
+                document.getElementById('avgCostLabel').textContent = 'Average Cost Per Share';
+                document.getElementById('priceChartContainer').style.display = 'block';
+                document.getElementById('chartTitle').textContent = '📊 SIP Investment Growth Over Time';
+                document.getElementById('verificationTitle').textContent = '🔍 Compounding Verification (First 24 Months)';
+            } else {
+                document.getElementById('sharesLabel').textContent = 'Shares Purchased';
+                document.getElementById('avgCostLabel').textContent = 'Purchase Price Per Share';
+                document.getElementById('priceChartContainer').style.display = 'none';
+                document.getElementById('chartTitle').textContent = '📊 Lump Sum Investment Growth Over Time';
+                document.getElementById('verificationTitle').textContent = '🔍 Growth Verification (First 24 Months)';
+            }
+            
             document.getElementById('totalShares').textContent = summary.totalShares;
             document.getElementById('avgCost').textContent = '₹' + summary.avgCost;
             document.getElementById('finalPrice').textContent = '₹' + summary.finalPrice;
             document.getElementById('expectedPrice').textContent = '₹' + summary.expectedPrice;
             
             // Update summary text
-            document.getElementById('summaryText').textContent = 
-                `By investing ₹${monthlyInvestment.toLocaleString()} every month for ${summary.investmentPeriodYears} years in ${stockName}, ` +
-                `you would accumulate ${summary.totalShares} shares at an average cost of ₹${summary.avgCost} per share. ` +
-                `Your total investment of ${formatCurrency(summary.totalInvested)} would grow to ${formatCurrency(summary.finalValue)}, ` +
-                `generating gains of ${formatCurrency(summary.totalGains)} (${summary.totalReturns}% returns) with ${(annualGrowthRate * 100).toFixed(1)}% annual growth.`;
+            if (summary.mode === 'SIP') {
+                document.getElementById('summaryText').textContent = 
+                    `By investing ₹${result.monthlyInvestment.toLocaleString()} every month for ${summary.investmentPeriodYears} years in ${stockName}, ` +
+                    `you would accumulate ${summary.totalShares} shares at an average cost of ₹${summary.avgCost} per share. ` +
+                    `Your total investment of ${formatCurrency(summary.totalInvested)} would grow to ${formatCurrency(summary.finalValue)}, ` +
+                    `generating gains of ${formatCurrency(summary.totalGains)} (${summary.totalReturns}% returns) with ${(annualGrowthRate * 100).toFixed(1)}% annual growth.`;
+            } else {
+                document.getElementById('summaryText').textContent = 
+                    `By investing a lump sum of ${formatCurrency(summary.totalInvested)} for ${summary.investmentPeriodYears} years in ${stockName}, ` +
+                    `you would purchase ${summary.totalShares} shares at ₹${summary.avgCost} per share. ` +
+                    `Your investment would grow to ${formatCurrency(summary.finalValue)}, ` +
+                    `generating gains of ${formatCurrency(summary.totalGains)} (${summary.totalReturns}% returns) with ${(annualGrowthRate * 100).toFixed(1)}% annual growth.`;
+            }
             
             // Show compounding verification table
-            showCompoundingTable();
+            showCompoundingTable(summary.mode === 'SIP' ? result.investmentPeriod : result.holdingPeriod);
             
-            createCharts(data);
+            createCharts(data, summary.mode);
         }
         
-        function showCompoundingTable() {
-            const monthsToShow = Math.min(24, document.getElementById('investmentPeriod').value);
+        function showCompoundingTable(totalPeriod) {
+            const monthsToShow = Math.min(24, totalPeriod);
             let tableHTML = '<div style="margin-bottom: 10px;"><strong>🔍 Compounding Verification:</strong></div>';
             tableHTML += '<div style="display: grid; grid-template-columns: auto auto auto auto; gap: 15px; font-weight: bold; border-bottom: 2px solid #dee2e6; padding-bottom: 8px; margin-bottom: 8px;">';
             tableHTML += '<div>Month</div><div>Share Price</div><div>vs Expected</div><div>Cumulative Growth</div></div>';
@@ -568,17 +752,16 @@
             }
             
             // Final verification for full period
-            const fullPeriod = parseInt(document.getElementById('investmentPeriod').value);
-            const finalExpectedPrice = currentPrice * Math.pow(1 + annualGrowthRate, fullPeriod/12);
+            const finalExpectedPrice = currentPrice * Math.pow(1 + annualGrowthRate, totalPeriod/12);
             
             tableHTML += `<div style="margin-top: 15px; padding: 15px; background: #f0f8ff; border-radius: 8px;">
-                <strong>📊 Full Period Verification (${fullPeriod} months = ${(fullPeriod/12).toFixed(1)} years):</strong><br>
+                <strong>📊 Full Period Verification (${totalPeriod} months = ${(totalPeriod/12).toFixed(1)} years):</strong><br>
                 Starting Price: ₹${currentPrice}<br>
                 Expected Final Price: ₹${finalExpectedPrice.toFixed(2)}<br>
                 Expected Total Growth: ${((finalExpectedPrice/currentPrice - 1) * 100).toFixed(1)}%<br><br>
                 
                 <strong>Formula Check:</strong><br>
-                ${currentPrice} × (1.${(annualGrowthRate * 100).toFixed(0)})^${(fullPeriod/12).toFixed(1)} = ₹${finalExpectedPrice.toFixed(2)}<br><br>
+                ${currentPrice} × (1.${(annualGrowthRate * 100).toFixed(0)})^${(totalPeriod/12).toFixed(1)} = ₹${finalExpectedPrice.toFixed(2)}<br><br>
                 
                 <strong>Monthly Rate:</strong> ${(monthlyRate * 100).toFixed(4)}%<br>
                 <strong>Annual Verification:</strong> (1 + ${(monthlyRate * 100).toFixed(4)}/100)^12 - 1 = ${((Math.pow(1 + monthlyRate, 12) - 1) * 100).toFixed(2)}%
@@ -587,34 +770,42 @@
             document.getElementById('compoundingTable').innerHTML = tableHTML;
         }
         
-        function createCharts(data) {
+        function createCharts(data, mode) {
             // Destroy existing charts
             if (growthChart) growthChart.destroy();
             if (priceChart) priceChart.destroy();
             
             // Growth Chart
             const growthCtx = document.getElementById('growthChart').getContext('2d');
+            
+            let datasets = [{
+                label: 'Total Invested',
+                data: data.totalInvested,
+                backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                borderColor: 'rgba(76, 175, 80, 1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Current Value',
+                data: data.currentValue,
+                backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                borderColor: 'rgba(33, 150, 243, 1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }];
+            
+            // For lump sum, the "Total Invested" line will be flat
+            if (mode === 'Lump Sum') {
+                datasets[0].stepped = true;
+            }
+            
             growthChart = new Chart(growthCtx, {
                 type: 'line',
                 data: {
                     labels: data.labels,
-                    datasets: [{
-                        label: 'Total Invested',
-                        data: data.totalInvested,
-                        backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                        borderColor: 'rgba(76, 175, 80, 1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4
-                    }, {
-                        label: 'Current Value',
-                        data: data.currentValue,
-                        backgroundColor: 'rgba(33, 150, 243, 0.2)',
-                        borderColor: 'rgba(33, 150, 243, 1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -640,49 +831,51 @@
                 }
             });
             
-            // Price Chart
-            const priceCtx = document.getElementById('priceChart').getContext('2d');
-            priceChart = new Chart(priceCtx, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        label: 'Current Share Price',
-                        data: data.sharePrice,
-                        backgroundColor: 'rgba(244, 67, 54, 0.1)',
-                        borderColor: 'rgba(244, 67, 54, 1)',
-                        borderWidth: 3,
-                        fill: false,
-                        tension: 0.4
-                    }, {
-                        label: 'Average Cost Per Share',
-                        data: data.avgCost,
-                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                        borderColor: 'rgba(76, 175, 80, 1)',
-                        borderWidth: 3,
-                        fill: false,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
+            // Price Chart (only for SIP mode)
+            if (mode === 'SIP') {
+                const priceCtx = document.getElementById('priceChart').getContext('2d');
+                priceChart = new Chart(priceCtx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Current Share Price',
+                            data: data.sharePrice,
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            borderColor: 'rgba(244, 67, 54, 1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        }, {
+                            label: 'Average Cost Per Share',
+                            data: data.avgCost,
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            borderColor: 'rgba(76, 175, 80, 1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        }]
                     },
-                    scales: {
-                        y: {
-                            ticks: {
-                                callback: function(value) {
-                                    return '₹' + value;
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        },
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₹' + value;
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
+            }
         }
         
         function showInputForm() {
